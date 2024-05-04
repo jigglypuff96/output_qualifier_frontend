@@ -22,9 +22,12 @@
   justify-content: center;
   gap: 10px;
 }
-
-.radio-group {
+。log .last-column {
   display: flex;
   flex-direction: column;
   margin-right: 10px;
+}
+.radio-group {
+  display: flex;
+  flex-direction: column;
 }

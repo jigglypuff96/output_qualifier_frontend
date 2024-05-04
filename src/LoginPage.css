@@ -15,12 +15,15 @@
   flex-direction: column;
   gap: 20px;
   width: 100%;
-  max-width: 300px;
+  max-width: 400px;
 }
 
 .login-form label {
   font-size: 16px;
   color: #333;
+  display: flex;
+  align-items: center;
+  width: 100%;
 }
 
 .login-form input {
@@ -42,4 +45,33 @@
 
 .login-form button:hover {
   background-color: #004494;
+}
+
+.upload-data-field {
+  display: flex;
+  flex-direction: column;
+}
+
+/* .username-field {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  flex-grow: 1;
+}
+
+.username-field input {
+  flex-grow: 1;
+} */
+.login-form input[type="text"],
+.login-form input[type="file"] {
+  flex-grow: 1;
+  padding: 8px 10px; /* Adjust padding as needed */
+  font-size: 16px; /* Ensure text size is appropriate */
+}
+
+/* Style the button consistently */
+.login-form button {
+  padding: 10px;
+  width: 100%; /* Optional: makes the button full width */
+  margin-top: 10px; /* Provides some space above the button */
 }

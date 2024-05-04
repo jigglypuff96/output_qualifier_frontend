@@ -2,78 +2,79 @@ import FlipCard from "./FlipCard";
 import Pagination from "./Pagination";
 import React, { useState, useEffect } from "react";
 import "./MainContent.css";
+import Papa from "papaparse";
 
-function MainContent({ username }) {
+function MainContent({ username, file }) {
   const [selections, setSelections] = useState({});
   const [dataRows, setDataRows] = useState([]);
   const [cardOrders, setCardOrders] = useState({});
+  const [outputCSV, setOutputCSV] = useState("");
+  const [committedSelections, setCommittedSelections] = useState({});
 
   const handleRadioChange = (rowId, conversationId, event) => {
-    const selection = event.target.value;
+    const newSelection = event.target.value;
     setSelections((prev) => ({
       ...prev,
-      [rowId]: { [conversationId]: selection },
+      [`${rowId}-${conversationId}`]: newSelection,
+    }));
+    setCommittedSelections((prev) => ({
+      ...prev,
+      [`${rowId}-${conversationId}`]: newSelection,
     }));
   };
 
   const handleSubmit = () => {
-    const formattedSelections = Object.keys(selections).flatMap((rowId) => {
-      return Object.keys(selections[rowId]).map((conversationId) => {
-        return {
-          rowId,
-          conversationId,
-          selection: selections[rowId][conversationId],
-        };
-      });
-    });
-
-    fetch("http://localhost:8888/submitSelections", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        username,
-        selections: formattedSelections,
-      }),
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        console.log("Success:", data);
+    const headers = "RowID,ConversationID,Selection\n";
+    const finalCSVContent = dataRows
+      .map((row) => {
+        const selectionKey = `${row.id}-${row.conversation_id}`;
+        const selection = committedSelections[selectionKey] || ""; // Use committed selections
+        return `${row.id},${row.conversation_id},${selection}`;
       })
-      .catch((error) => {
-        console.error("Error:", error);
-      });
+      .join("\n");
+
+    setOutputCSV(headers + finalCSVContent);
+    downloadCSV(headers + finalCSVContent, `${username}_selections.csv`);
+    // Optionally reset state here if needed
+    setSelections({});
+  };
+
+  const downloadCSV = (csvString, filename) => {
+    const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   useEffect(() => {
-    fetch("http://localhost:8888/dataRows")
-      .then((response) => response.json())
-      .then((data) => {
-        setDataRows(
-          data.map((row, index) => ({
-            ...row,
-            id: index + 1,
-          }))
-        );
-        const orders = {};
-        data.forEach((row, index) => {
-          // Decide order here: 50% chance for either order
-          orders[row.id] = Math.random() > 0.5 ? "normal" : "reversed";
-        });
-        setCardOrders(orders);
-      })
-      // .then((data) => {
-      //   const firstFiveRows = data.slice(0, 5).map((row, index) => ({
-      //     ...row,
-      //     id: index + 1,
-      //   }));
-      //   setDataRows(firstFiveRows);
-      // })
-      .catch((error) => {
-        console.error("Error fetching data:", error);
+    if (file) {
+      Papa.parse(file, {
+        complete: (results) => {
+          setDataRows(
+            results.data.map((row, index) => ({
+              ...row,
+              id: index + 1,
+            }))
+          );
+        },
+        header: true,
       });
-  }, []);
+    }
+  }, [file]);
+
+  useEffect(() => {
+    if (dataRows.length > 0) {
+      const headers = "RowID,ConversationID,Selection\n";
+      const initialCSVContent = dataRows
+        .map((row) => `${row.id},${row.conversation_id},`)
+        .join("\n");
+      setOutputCSV(headers + initialCSVContent);
+    }
+  }, [dataRows]);
 
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 15;
@@ -116,71 +117,72 @@ function MainContent({ username }) {
               <FlipCard frontContent=" " backContent={row.output} />
             </>
           )}
-          <div className="radio-group">
-            <label>
-              <input
-                type="radio"
-                name={`response-${row.id}`}
-                value="A"
-                onChange={(event) =>
-                  handleRadioChange(row.id, row.conversation_id, event)
-                }
-              />{" "}
-              Answer 1 is much better
-            </label>
-            <label>
-              <input
-                type="radio"
-                name={`response-${row.id}`}
-                value="B"
-                onChange={(event) =>
-                  handleRadioChange(row.id, row.conversation_id, event)
-                }
-              />{" "}
-              Answer 2 is much better
-            </label>
-            <label>
-              <input
-                type="radio"
-                name={`response-${row.id}`}
-                value="C"
-                onChange={(event) =>
-                  handleRadioChange(row.id, row.conversation_id, event)
-                }
-              />{" "}
-              Answer 1 is slightly better
-            </label>
-            <label>
-              <input
-                type="radio"
-                name={`response-${row.id}`}
-                value="B"
-                onChange={(event) =>
-                  handleRadioChange(row.id, row.conversation_id, event)
-                }
-              />{" "}
-              Answer 2 is slightly better
-            </label>
-            <label>
-              <input
-                type="radio"
-                name={`response-${row.id}`}
-                value="E"
-                onChange={(event) =>
-                  handleRadioChange(row.id, row.conversation_id, event)
-                }
-              />{" "}
-              Answer 1 and 2 are similar
-            </label>
+          <div className="last-column">
+            <div className="row-id-info">row_id:{row.id}</div>
+            <div className="radio-group">
+              <label>
+                <input
+                  type="radio"
+                  name={`response-${row.id}`}
+                  value="A"
+                  onChange={(event) =>
+                    handleRadioChange(row.id, row.conversation_id, event)
+                  }
+                />{" "}
+                Answer 1 is much better
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name={`response-${row.id}`}
+                  value="B"
+                  onChange={(event) =>
+                    handleRadioChange(row.id, row.conversation_id, event)
+                  }
+                />{" "}
+                Answer 2 is much better
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name={`response-${row.id}`}
+                  value="C"
+                  onChange={(event) =>
+                    handleRadioChange(row.id, row.conversation_id, event)
+                  }
+                />{" "}
+                Answer 1 is slightly better
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name={`response-${row.id}`}
+                  value="D"
+                  onChange={(event) =>
+                    handleRadioChange(row.id, row.conversation_id, event)
+                  }
+                />{" "}
+                Answer 2 is slightly better
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name={`response-${row.id}`}
+                  value="E"
+                  onChange={(event) =>
+                    handleRadioChange(row.id, row.conversation_id, event)
+                  }
+                />{" "}
+                Answer 1 and 2 are similar
+              </label>
+            </div>
           </div>
         </div>
       ))}
       <div className="bottom-controls">
-        {currentPage < totalPages && (
-          <button className="submit-button" onClick={handleSubmit}>
-            Submit and Next Page
-          </button>
-        )}
+        <button className="submit-button" onClick={handleSubmit}>
+          Submit and Download CSV
+        </button>
         <Pagination
           totalPages={totalPages}
           currentPage={currentPage}
