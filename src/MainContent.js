@@ -14,6 +14,7 @@ function MainContent({ username, file }) {
   const [outputCSV, setOutputCSV] = useState("");
   const [committedSelections, setCommittedSelections] = useState({});
   const [needNecessitySelection, setNeedNecessitySelection] = useState({});
+  const [inputFirstShown, setInputFirstShown] = useState({});
   const [necessityChoices, setNecessityChoices] = useState({});
 
   const handleRadioChange = (rowId, conversationId, event) => {
@@ -89,7 +90,8 @@ function MainContent({ username, file }) {
 
   useEffect(() => {
     if (dataRows.length > 0) {
-      const newNeedReview = {};
+      const needNecessarySelections = {};
+      const newInputMessage = [];
       dataRows.forEach((row, index) => {
         if (
           (index < dataRows.length - 1 &&
@@ -97,10 +99,18 @@ function MainContent({ username, file }) {
             row.conversation_id === dataRows[index + 1].conversation_id) ||
           index === dataRows.length - 1
         ) {
-          newNeedReview[row.id] = true;
+          needNecessarySelections[row.id] = true;
+        }
+
+        if (
+          (index > 0 && row.input !== dataRows[index - 1].input) ||
+          index === 0
+        ) {
+          newInputMessage[row.id] = true;
         }
       });
-      setNeedNecessitySelection(newNeedReview);
+      setNeedNecessitySelection(needNecessarySelections);
+      setInputFirstShown(newInputMessage);
     }
   }, [dataRows]);
 
@@ -139,7 +149,10 @@ function MainContent({ username, file }) {
           Flip 2nd and 3rd column cards to see answer 1 and 2 of the input
           message.
           <br />
-          Make your selections in the last column.
+          Red card = place you need to decide whether the PII redaction is
+          necessary. redaction is necessary. Flip that red card to see the
+          redacted inpu. Make your selections in the last column. Once you made
+          your selection, the card will turn green.
           <br />
           Only flip 1st column card when seeing rows asking whether the PII
           redaction is necessary.
@@ -151,7 +164,21 @@ function MainContent({ username, file }) {
       {currentRows.map((row) => (
         <div key={row.id} className="row">
           <FlipCard
-            frontContent={row.input}
+            frontContent={
+              inputFirstShown[row.id] ? (
+                <>
+                  {"[NEW INPUT!]"}
+                  <br />
+                  {row.input}
+                </>
+              ) : (
+                <>
+                  {"[SAME AS ABOVE]"}
+                  <br />
+                  {row.input}
+                </>
+              )
+            }
             backContent={
               needNecessitySelection[row.id] ? (
                 <>
@@ -169,8 +196,12 @@ function MainContent({ username, file }) {
               )
             }
             additionalStyles={{
-              backgroundColor: needNecessitySelection[row.id]
-                ? "red"
+              backgroundColor: necessityChoices[
+                `${row.id}-${row.conversation_id}`
+              ]
+                ? "#cbeebf"
+                : needNecessitySelection[row.id]
+                ? "#eedada"
                 : "transparent",
             }}
           />
