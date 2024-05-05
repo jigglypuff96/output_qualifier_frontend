@@ -1,6 +1,6 @@
 // Pagination.js
-import React from "react";
-import "./Pagination.css"; // Import the CSS for styling
+import React, { useState } from "react";
+import "./Pagination.css";
 
 function paginate(totalPages, currentPage, pageNeighbours = 1) {
   const range = (start, end) =>
@@ -32,6 +32,18 @@ function paginate(totalPages, currentPage, pageNeighbours = 1) {
 }
 
 const Pagination = ({ totalPages, currentPage, onPageChange }) => {
+  const [pageInput, setPageInput] = useState(""); // State to hold the user's input for direct navigation
+
+  const handleGoToPage = () => {
+    const pageNumber = Number(pageInput);
+    if (pageNumber >= 1 && pageNumber <= totalPages) {
+      onPageChange(pageNumber);
+      setPageInput("");
+    } else {
+      alert("Please enter a valid page number.");
+    }
+  };
+
   const paginationPages = paginate(totalPages, currentPage, 1); // 1 can be adjusted based on your design
 
   return (
@@ -56,6 +68,18 @@ const Pagination = ({ totalPages, currentPage, onPageChange }) => {
           </button>
         );
       })}
+      <div className="pagination-direct">
+        <input
+          type="text"
+          value={pageInput}
+          onChange={(e) => setPageInput(e.target.value)}
+          placeholder="Go to page..."
+          className="pagination-input"
+        />
+        <button onClick={handleGoToPage} className="pagination-go-button">
+          Go
+        </button>
+      </div>
     </div>
   );
 };

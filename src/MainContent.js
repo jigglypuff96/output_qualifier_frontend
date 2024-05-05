@@ -1,15 +1,20 @@
 import FlipCard from "./FlipCard";
 import Pagination from "./Pagination";
+import Popup from "./Popup";
 import React, { useState, useEffect } from "react";
 import "./MainContent.css";
 import Papa from "papaparse";
 
 function MainContent({ username, file }) {
+  const [showPopup, setShowPopup] = useState(true);
+
   const [selections, setSelections] = useState({});
   const [dataRows, setDataRows] = useState([]);
   const [cardOrders, setCardOrders] = useState({});
   const [outputCSV, setOutputCSV] = useState("");
   const [committedSelections, setCommittedSelections] = useState({});
+  const [needNecessitySelection, setNeedNecessitySelection] = useState({});
+  const [necessityChoices, setNecessityChoices] = useState({});
 
   const handleRadioChange = (rowId, conversationId, event) => {
     const newSelection = event.target.value;
@@ -22,21 +27,27 @@ function MainContent({ username, file }) {
       [`${rowId}-${conversationId}`]: newSelection,
     }));
   };
+  const handleNecessityChange = (rowId, conversationId, event) => {
+    const necessity = event.target.value;
+    setNecessityChoices((prev) => ({
+      ...prev,
+      [`${rowId}-${conversationId}`]: necessity,
+    }));
+  };
 
   const handleSubmit = () => {
-    const headers = "RowID,ConversationID,Selection\n";
+    const headers = "RowID,ConversationID,Selection,Necessity\n";
     const finalCSVContent = dataRows
       .map((row) => {
         const selectionKey = `${row.id}-${row.conversation_id}`;
-        const selection = committedSelections[selectionKey] || ""; // Use committed selections
-        return `${row.id},${row.conversation_id},${selection}`;
+        const selection = selections[selectionKey] || "";
+        const necessity = necessityChoices[selectionKey] || "";
+        return `${row.id},${row.conversation_id},${selection},${necessity}`;
       })
       .join("\n");
 
     setOutputCSV(headers + finalCSVContent);
     downloadCSV(headers + finalCSVContent, `${username}_selections.csv`);
-    // Optionally reset state here if needed
-    setSelections({});
   };
 
   const downloadCSV = (csvString, filename) => {
@@ -76,6 +87,23 @@ function MainContent({ username, file }) {
     }
   }, [dataRows]);
 
+  useEffect(() => {
+    if (dataRows.length > 0) {
+      const newNeedReview = {};
+      dataRows.forEach((row, index) => {
+        if (
+          (index < dataRows.length - 1 &&
+            row.text_to_replace !== dataRows[index + 1].text_to_replace &&
+            row.conversation_id === dataRows[index + 1].conversation_id) ||
+          index === dataRows.length - 1
+        ) {
+          newNeedReview[row.id] = true;
+        }
+      });
+      setNeedNecessitySelection(newNeedReview);
+    }
+  }, [dataRows]);
+
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 15;
 
@@ -92,13 +120,59 @@ function MainContent({ username, file }) {
   const indexOfFirstRow = indexOfLastRow - rowsPerPage;
   const currentRows = dataRows.slice(indexOfFirstRow, indexOfLastRow);
 
+  const options = [
+    { value: "A", label: "Answer 1 is much better" },
+    { value: "B", label: "Answer 2 is much better" },
+    { value: "C", label: "Answer 1 is slightly better" },
+    { value: "D", label: "Answer 2 is slightly better" },
+    { value: "E", label: "Answer 1 and 2 are similar" },
+  ];
+
   return (
     <div className="main-content">
+      <Popup isOpen={showPopup} onClose={() => setShowPopup(false)}>
+        <p>
+          Info:
+          <br />
+          1st column card is the input message.
+          <br />
+          Flip 2nd and 3rd column cards to see answer 1 and 2 of the input
+          message.
+          <br />
+          Make your selections in the last column.
+          <br />
+          Only flip 1st column card when seeing rows asking whether the PII
+          redaction is necessary.
+          <br />
+          Remember to click "Submit and Download CSV" button to save your
+          responses!
+        </p>
+      </Popup>
       {currentRows.map((row) => (
         <div key={row.id} className="row">
           <FlipCard
             frontContent={row.input}
-            backContent={row.text_to_replace}
+            backContent={
+              needNecessitySelection[row.id] ? (
+                <>
+                  {"REDACTED INPUT:"}
+                  <br />
+                  {row.redacted_input}
+                  <br />
+                  <br />
+                  {"PII:"}
+                  <br />
+                  {row.text_to_replace}
+                </>
+              ) : (
+                ""
+              )
+            }
+            additionalStyles={{
+              backgroundColor: needNecessitySelection[row.id]
+                ? "red"
+                : "transparent",
+            }}
           />
           {cardOrders[row.id] === "normal" ? (
             <>
@@ -118,64 +192,73 @@ function MainContent({ username, file }) {
             </>
           )}
           <div className="last-column">
-            <div className="row-id-info">row_id:{row.id}</div>
-            <div className="radio-group">
-              <label>
-                <input
-                  type="radio"
-                  name={`response-${row.id}`}
-                  value="A"
-                  onChange={(event) =>
-                    handleRadioChange(row.id, row.conversation_id, event)
-                  }
-                />{" "}
-                Answer 1 is much better
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name={`response-${row.id}`}
-                  value="B"
-                  onChange={(event) =>
-                    handleRadioChange(row.id, row.conversation_id, event)
-                  }
-                />{" "}
-                Answer 2 is much better
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name={`response-${row.id}`}
-                  value="C"
-                  onChange={(event) =>
-                    handleRadioChange(row.id, row.conversation_id, event)
-                  }
-                />{" "}
-                Answer 1 is slightly better
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name={`response-${row.id}`}
-                  value="D"
-                  onChange={(event) =>
-                    handleRadioChange(row.id, row.conversation_id, event)
-                  }
-                />{" "}
-                Answer 2 is slightly better
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name={`response-${row.id}`}
-                  value="E"
-                  onChange={(event) =>
-                    handleRadioChange(row.id, row.conversation_id, event)
-                  }
-                />{" "}
-                Answer 1 and 2 are similar
-              </label>
+            <div className="row-id-info">#{row.id}</div>
+            <div className="comparison-button radio-group">
+              {options.map((option) => (
+                <label key={option.value}>
+                  <input
+                    type="radio"
+                    name={`response-${row.id}`}
+                    value={option.value}
+                    checked={
+                      selections[`${row.id}-${row.conversation_id}`] ===
+                      option.value
+                    }
+                    onChange={(event) =>
+                      handleRadioChange(row.id, row.conversation_id, event)
+                    }
+                  />{" "}
+                  {option.label}
+                </label>
+              ))}
             </div>
+            {needNecessitySelection[row.id] && (
+              <>
+                <div className="necessary-question">
+                  Is the PII redaction necessary?
+                </div>
+                <div className="necessary-buttons radio-group">
+                  <label>
+                    <input
+                      type="radio"
+                      name={`decision-${row.id}`}
+                      value="necessary"
+                      checked={
+                        necessityChoices[`${row.id}-${row.conversation_id}`] ===
+                        "necessary"
+                      }
+                      onChange={(event) =>
+                        handleNecessityChange(
+                          row.id,
+                          row.conversation_id,
+                          event
+                        )
+                      }
+                    />{" "}
+                    Necessary
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name={`decision-${row.id}`}
+                      value="unnecessary"
+                      checked={
+                        necessityChoices[`${row.id}-${row.conversation_id}`] ===
+                        "unnecessary"
+                      }
+                      onChange={(event) =>
+                        handleNecessityChange(
+                          row.id,
+                          row.conversation_id,
+                          event
+                        )
+                      }
+                    />{" "}
+                    Unnecessary
+                  </label>
+                </div>
+              </>
+            )}
           </div>
         </div>
       ))}

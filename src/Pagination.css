@@ -22,3 +22,25 @@
   padding: 5px 10px;
   user-select: none;
 }
+
+.pagination-input {
+  padding: 5px;
+  margin-right: 5px;
+  border: 1px solid #ccc;
+  outline: none;
+}
+
+.pagination-go-button {
+  padding: 5px 10px;
+  border: none;
+  background-color: #eee;
+  cursor: pointer;
+  outline: none;
+}
+.pagination-go-button:hover,
+.pagination-item:hover {
+  background-color: #ddd;
+}
+.pagination-go-button:active {
+  background-color: #ccc;
+}
