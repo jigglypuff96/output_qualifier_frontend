@@ -13,7 +13,6 @@ function MainContent({ username, file }) {
   const [cardOrders, setCardOrders] = useState({});
   const [outputCSV, setOutputCSV] = useState("");
   const [committedSelections, setCommittedSelections] = useState({});
-  const [needNecessitySelection, setNeedNecessitySelection] = useState({});
   const [inputFirstShown, setInputFirstShown] = useState({});
   const [necessityChoices, setNecessityChoices] = useState({});
 
@@ -37,13 +36,14 @@ function MainContent({ username, file }) {
   };
 
   const handleSubmit = () => {
-    const headers = "RowID,ConversationID,Selection,Necessity\n";
+    const headers =
+      "RowID,ConversationID,Sequence,Selection,Necessity,TextToReplace\n";
     const finalCSVContent = dataRows
       .map((row) => {
         const selectionKey = `${row.id}-${row.conversation_id}`;
         const selection = selections[selectionKey] || "";
         const necessity = necessityChoices[selectionKey] || "";
-        return `${row.id},${row.conversation_id},${selection},${necessity}`;
+        return `${row.id},${row.conversation_id},${row.sequence},${selection},${necessity},${row.text_to_replace}`;
       })
       .join("\n");
 
@@ -66,10 +66,20 @@ function MainContent({ username, file }) {
     if (file) {
       Papa.parse(file, {
         complete: (results) => {
+          const uniqueKeys = new Set(); // To track unique combinations
           const filteredAndMappedData = results.data
-            .filter(
-              (row) => row.conversation_id && row.conversation_id.length > 0
-            )
+            .filter((row) => {
+              const key = `${row.conversation_id}-${row.text_to_replace}`;
+              if (
+                row.conversation_id &&
+                row.conversation_id.length > 0 &&
+                !uniqueKeys.has(key)
+              ) {
+                uniqueKeys.add(key);
+                return true;
+              }
+              return false;
+            })
             .map((row, index) => ({
               ...row,
               id: index + 1,
@@ -84,28 +94,8 @@ function MainContent({ username, file }) {
 
   useEffect(() => {
     if (dataRows.length > 0) {
-      const headers = "RowID,ConversationID,Selection\n";
-      const initialCSVContent = dataRows
-        .map((row) => `${row.id},${row.conversation_id},`)
-        .join("\n");
-      setOutputCSV(headers + initialCSVContent);
-    }
-  }, [dataRows]);
-
-  useEffect(() => {
-    if (dataRows.length > 0) {
-      const needNecessarySelections = {};
       const newInputMessage = [];
       dataRows.forEach((row, index) => {
-        if (
-          (index < dataRows.length - 1 &&
-            row.text_to_replace !== dataRows[index + 1].text_to_replace &&
-            row.conversation_id === dataRows[index + 1].conversation_id) ||
-          index === dataRows.length - 1
-        ) {
-          needNecessarySelections[row.id] = true;
-        }
-
         if (
           (index > 0 && row.input !== dataRows[index - 1].input) ||
           index === 0
@@ -113,7 +103,6 @@ function MainContent({ username, file }) {
           newInputMessage[row.id] = true;
         }
       });
-      setNeedNecessitySelection(needNecessarySelections);
       setInputFirstShown(newInputMessage);
     }
   }, [dataRows]);
@@ -171,7 +160,7 @@ function MainContent({ username, file }) {
             frontContent={
               inputFirstShown[row.id] ? (
                 <>
-                  {"[NEW INPUT!]"}
+                  <span style={{ color: "red" }}>{"[NEW INPUT!]"}</span>
                   <br />
                   {row.input}
                 </>
@@ -184,28 +173,22 @@ function MainContent({ username, file }) {
               )
             }
             backContent={
-              needNecessitySelection[row.id] ? (
-                <>
-                  {"REDACTED INPUT:"}
-                  <br />
-                  {row.redacted_input}
-                  <br />
-                  <br />
-                  {"PII:"}
-                  <br />
-                  {row.text_to_replace}
-                </>
-              ) : (
-                ""
-              )
+              <>
+                {"REDACTED INPUT:"}
+                <br />
+                {row.redacted_input}
+                <br />
+                <br />
+                {"PII:"}
+                <br />
+                {row.text_to_replace}
+              </>
             }
             additionalStyles={{
               backgroundColor: necessityChoices[
                 `${row.id}-${row.conversation_id}`
               ]
                 ? "#cbeebf"
-                : needNecessitySelection[row.id]
-                ? "#eedada"
                 : "transparent",
             }}
           />
@@ -247,53 +230,41 @@ function MainContent({ username, file }) {
                 </label>
               ))}
             </div>
-            {needNecessitySelection[row.id] && (
-              <>
-                <div className="necessary-question">
-                  Is the PII redaction necessary?
-                </div>
-                <div className="necessary-buttons radio-group">
-                  <label>
-                    <input
-                      type="radio"
-                      name={`decision-${row.id}`}
-                      value="necessary"
-                      checked={
-                        necessityChoices[`${row.id}-${row.conversation_id}`] ===
-                        "necessary"
-                      }
-                      onChange={(event) =>
-                        handleNecessityChange(
-                          row.id,
-                          row.conversation_id,
-                          event
-                        )
-                      }
-                    />{" "}
-                    Necessary
-                  </label>
-                  <label>
-                    <input
-                      type="radio"
-                      name={`decision-${row.id}`}
-                      value="unnecessary"
-                      checked={
-                        necessityChoices[`${row.id}-${row.conversation_id}`] ===
-                        "unnecessary"
-                      }
-                      onChange={(event) =>
-                        handleNecessityChange(
-                          row.id,
-                          row.conversation_id,
-                          event
-                        )
-                      }
-                    />{" "}
-                    Unnecessary
-                  </label>
-                </div>
-              </>
-            )}
+            <div className="necessary-question">
+              Is the PII redaction necessary?
+            </div>
+            <div className="necessary-buttons radio-group">
+              <label>
+                <input
+                  type="radio"
+                  name={`decision-${row.id}`}
+                  value="necessary"
+                  checked={
+                    necessityChoices[`${row.id}-${row.conversation_id}`] ===
+                    "necessary"
+                  }
+                  onChange={(event) =>
+                    handleNecessityChange(row.id, row.conversation_id, event)
+                  }
+                />{" "}
+                Necessary
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name={`decision-${row.id}`}
+                  value="unnecessary"
+                  checked={
+                    necessityChoices[`${row.id}-${row.conversation_id}`] ===
+                    "unnecessary"
+                  }
+                  onChange={(event) =>
+                    handleNecessityChange(row.id, row.conversation_id, event)
+                  }
+                />{" "}
+                Unnecessary
+              </label>
+            </div>
           </div>
         </div>
       ))}
