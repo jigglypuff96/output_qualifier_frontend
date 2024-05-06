@@ -66,12 +66,16 @@ function MainContent({ username, file }) {
     if (file) {
       Papa.parse(file, {
         complete: (results) => {
-          setDataRows(
-            results.data.map((row, index) => ({
+          const filteredAndMappedData = results.data
+            .filter(
+              (row) => row.conversation_id && row.conversation_id.length > 0
+            )
+            .map((row, index) => ({
               ...row,
               id: index + 1,
-            }))
-          );
+            }));
+
+          setDataRows(filteredAndMappedData);
         },
         header: true,
       });
@@ -205,7 +209,7 @@ function MainContent({ username, file }) {
                 : "transparent",
             }}
           />
-          {cardOrders[row.id] === "normal" ? (
+          {row.sequence === "AB" ? (
             <>
               <FlipCard frontContent=" " backContent={row.output} />
               <FlipCard
