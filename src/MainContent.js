@@ -5,6 +5,23 @@ import React, { useState, useEffect } from "react";
 import "./MainContent.css";
 import Papa from "papaparse";
 
+function highlightText(text, highlight) {
+  const regex = new RegExp(
+    `(${highlight.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&")})`,
+    "gi"
+  );
+  const parts = text.split(regex);
+  return parts.map((part, index) =>
+    regex.test(part) ? (
+      <span key={index} style={{ backgroundColor: "yellow" }}>
+        {part}
+      </span>
+    ) : (
+      part
+    )
+  );
+}
+
 function MainContent({ username, file }) {
   const [showPopup, setShowPopup] = useState(true);
 
@@ -176,7 +193,7 @@ function MainContent({ username, file }) {
               <>
                 {"REDACTED INPUT:"}
                 <br />
-                {row.redacted_input}
+                {highlightText(row.redacted_input, row.entity_placeholder)}
                 <br />
                 <br />
                 {"PII:"}
