@@ -279,9 +279,7 @@ function MainContent({ username, rawDataFile, progressFile }) {
                 </label>
               ))}
             </div>
-            <div className="necessary-question">
-              Is the PII redaction necessary?
-            </div>
+            <div className="necessary-question">Is the PII necessary?</div>
             <div className="necessary-buttons radio-group">
               <label>
                 <input
