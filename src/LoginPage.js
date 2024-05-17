@@ -3,16 +3,21 @@ import "./LoginPage.css";
 
 function LoginPage({ onLogin }) {
   const [username, setUsername] = useState("");
-  const [file, setFile] = useState(null);
+  const [rawfile, setRawFile] = useState(null);
+  const [progressfile, setProgressFile] = useState(null);
 
-  const handleFileChange = (event) => {
-    setFile(event.target.files[0]); // Capture the file from the input
+  const handleRawDataUpload = (event) => {
+    setRawFile(event.target.files[0]);
+  };
+
+  const handleProgressUpload = (event) => {
+    setProgressFile(event.target.files[0]);
   };
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    if (file) {
-      onLogin(username, file);
+    if (rawfile) {
+      onLogin(username, rawfile, progressfile);
     } else {
       alert("Please upload a CSV file to continue.");
     }
@@ -31,10 +36,20 @@ function LoginPage({ onLogin }) {
           />
         </label>
         <label className="upload-data-field">
+          Upload Raw Data:
           <input
             type="file"
             accept=".csv"
-            onChange={handleFileChange}
+            onChange={handleRawDataUpload}
+            required
+          />
+        </label>
+        <label className="upload-data-field">
+          Upload Progress Data:
+          <input
+            type="file"
+            accept=".csv"
+            onChange={handleProgressUpload}
             required
           />
         </label>

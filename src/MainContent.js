@@ -22,7 +22,7 @@ function highlightText(text, highlight) {
   );
 }
 
-function MainContent({ username, file }) {
+function MainContent({ username, rawDataFile, progressFile }) {
   const [showPopup, setShowPopup] = useState(true);
 
   const [selections, setSelections] = useState({});
@@ -32,6 +32,18 @@ function MainContent({ username, file }) {
   const [committedSelections, setCommittedSelections] = useState({});
   const [inputFirstShown, setInputFirstShown] = useState({});
   const [necessityChoices, setNecessityChoices] = useState({});
+
+  const processImportedData = (data) => {
+    const newSelections = {};
+    const newNecessityChoices = {};
+    data.forEach((row) => {
+      const key = `${row.RowID}-${row.ConversationID}`;
+      if (row.Selection) newSelections[key] = row.Selection;
+      if (row.Necessity) newNecessityChoices[key] = row.Necessity;
+    });
+    setSelections(newSelections);
+    setNecessityChoices(newNecessityChoices);
+  };
 
   const handleRadioChange = (rowId, conversationId, event) => {
     const newSelection = event.target.value;
@@ -80,8 +92,8 @@ function MainContent({ username, file }) {
   };
 
   useEffect(() => {
-    if (file) {
-      Papa.parse(file, {
+    if (rawDataFile) {
+      Papa.parse(rawDataFile, {
         complete: (results) => {
           const uniqueKeys = new Set(); // To track unique combinations
           const filteredAndMappedData = results.data
@@ -107,7 +119,18 @@ function MainContent({ username, file }) {
         header: true,
       });
     }
-  }, [file]);
+  }, [rawDataFile]);
+
+  useEffect(() => {
+    if (progressFile) {
+      Papa.parse(progressFile, {
+        header: true,
+        complete: (results) => {
+          processImportedData(results.data);
+        },
+      });
+    }
+  }, [progressFile]);
 
   useEffect(() => {
     if (dataRows.length > 0) {
@@ -227,7 +250,16 @@ function MainContent({ username, file }) {
             </>
           )}
           <div className="last-column">
-            <div className="row-id-info">#{row.id}</div>
+            <div
+              className="row-id-info"
+              style={{
+                color: selections[`${row.id}-${row.conversation_id}`]
+                  ? "green"
+                  : "red",
+              }}
+            >
+              #{row.id}
+            </div>
             <div className="comparison-button radio-group">
               {options.map((option) => (
                 <label key={option.value}>
